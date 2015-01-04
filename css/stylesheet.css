@@ -1,0 +1,47 @@
+body {
+    font: 13px Helvetica, Arial;
+}
+
+#header {
+    width: 100%;
+    height: 20%;
+    float: left;
+}
+
+#board {
+    clear: both;
+    width: 75%;
+    height: 80%;
+    float: left;
+}
+
+#messages {
+    width: 25%;
+    height: 80%;
+    float: right;
+    list-style-type: none;
+}
+
+#messageList {
+    padding: 5px 10px;
+}
+
+#messageList:nth-child(odd) {
+    background: #eee;
+}
+
+.piece {
+    height: 128px;
+    width: 128px;
+    background-color: gray;
+    background-repeat: no-repeat;
+    background-size: cover;
+    border-radius: 100%;
+    display: inline-block;
+}
+
+.matchImg {
+    height: 64px;
+    width: 64px;
+    border-radius: 100%;
+}

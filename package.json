@@ -1,0 +1,9 @@
+{
+  "name": "mmmemory",
+  "version": "0.0.1",
+  "description": "A modestly multiplayer memory game",
+  "dependencies": {
+    "node-static": "^0.7.6",
+    "socket.io": "^1.2.1"
+  }
+}
