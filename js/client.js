@@ -1,44 +1,52 @@
 socket = io(); 
 
-var addMessage = function (msg)
+// Set to true to add raw event logging to the bottom of each client's pages.
+var enableLog = false;
+var logMessage = function (msg)
 {
-    $('#messages').append('<li>' + msg + '</li>');
+    if (enableLog) {
+        $('#log').append('<li class="logEntry">' + msg + '</li>');
+    }
 }
 
 $(document).ready(function(){
     $('.piece').click(function(){
         var pieceIndex = $(this).attr('id');
         socket.emit('selected', pieceIndex);
-        addMessage('<em>local<em>: Selected ' + pieceIndex);
+        logMessage('<em>local<em>: Selected ' + pieceIndex);
     });
     
     socket.on('selected', function(pieceInfo){
-        pieceIndex = pieceInfo.pieceIndex;
-        piece = pieceInfo.piece;
-        addMessage('<em>remote<em> Selected ' + pieceIndex);
+        var pieceIndex = pieceInfo.pieceIndex;
+        var piece = pieceInfo.piece;
+        logMessage('<em>remote<em> Selected ' + pieceIndex);
         $('#' + pieceIndex).css('background-image', 
                                 'url(' + piece.imagePath + ')');
     });
     
     socket.on('unselected', function(pieceIndex){
-        addMessage('<em>remote<em>: Unselected ' + pieceIndex);
+        logMessage('<em>remote<em>: Unselected ' + pieceIndex);
         $('#' + pieceIndex).css('background-image', 'none');
     });
     
     socket.on('match', function(piece){
-        addMessage('<img class="matchImg" src="' + piece.imagePath + '" /><p>You found the flag of ' + piece.name);
-                        /*
-                var matchImg = '<img class="matchImg" src="' +
-                             piece.imagePath +
-                             '" />';
-                var matchDescription ="<p>You found " +
-                                       piece.getMatchString() +
-                                       "!</p>";
-                $('#match_table').append(
-                    '<tr>' + 
-                        '<td>' + matchImg + '</td>' +
-                        '<td>' + matchDescription + '</td>' +
-                    '</tr>');
-                    */
+        logMessage('<em>remote<em>: Matched ' + piece.name);
+    
+        var matchImg = '<img class="matchImg" src="' + piece.imagePath + '" />';
+        var matchUrl = 'https://en.wikipedia.org/wiki/' + piece.name;
+        var matchDescription =
+            '<p>' +
+                'You found the flag of ' +
+                    '<a href="' + matchUrl + '">' + piece.name + '</a>.' +
+            '</p>';
+        $('#matchTable').append('<tr>' + 
+                                  '<td>' + matchImg + '</td>' +
+                                  '<td>' + matchDescription + '</td>' +
+                                '</tr>');
+    });
+    
+    socket.on('won', function(moves){
+        logMessage('You won in ' + moves + ' moves.');
+        $('#matchTable').append('<tr><td colspan="2">You won in ' + moves + ' moves!</td></tr>');
     });
 });

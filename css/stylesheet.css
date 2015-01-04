@@ -15,19 +15,28 @@ body {
     float: left;
 }
 
-#messages {
+#matches {
     width: 25%;
     height: 80%;
     float: right;
     list-style-type: none;
 }
 
-#messageList {
-    padding: 5px 10px;
+#matchTable {
+    border-collapse: collapse;
 }
 
-#messageList:nth-child(odd) {
+#matchTable:nth-child(odd) {
     background: #eee;
+}
+
+#matchTable td {
+    border-collapse: collapse;
+}
+
+#log {
+    clear: both;
+    float: left;
 }
 
 .piece {
@@ -44,4 +53,8 @@ body {
     height: 64px;
     width: 64px;
     border-radius: 100%;
+}
+
+.logEntry {
+    hidden: false;
 }

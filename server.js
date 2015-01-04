@@ -21,6 +21,7 @@ function PieceList (name, description)
     this.name = name;
     this.description = description;
     this.pieces = [];
+    this.numMatched = 0;
 }
 PieceList.prototype.initPieces = function (numGroups, groupSize)
 {
@@ -351,7 +352,7 @@ FlagPieceList.prototype.initPieces = function (numGroups, groupSize)
 console.log("Initialize flags.");
 populateFlagIds();
 
-var clickCount = 0;
+var moves = 0;
 var prevPieceIndex = -1; 
 var numGroups = 4;
 var groupSize = 2;
@@ -376,7 +377,8 @@ io.on('connection', function(socket){
     });
     
     socket.on('selected', function(pieceIndex){
-        console.log('selected: ' + pieceIndex);
+        moves++;
+        console.log('selected ' + pieceIndex + '; ' + moves + ' moves so far.');
 
         var piece = boardPieces.pieces[pieceIndex];
 
@@ -405,11 +407,18 @@ io.on('connection', function(socket){
 
             if (prevPiece.name === piece.name) {
                 // Match!
+                
+                // Record the match and report it to clients.
                 prevPiece.isMatched = true;
                 piece.isMatched = true;
                 io.emit('match', piece);
-
                 prevPieceIndex = -1;
+                
+                // See if this was the final set needed.
+                boardPieces.numMatched += 2;
+                if (boardPieces.numMatched >= boardPieces.pieces.length) {
+                    io.emit('won', moves);
+                }
             } else {
                 // No match. Hide the previous piece and remember this one.
                 io.emit('unselected', prevPieceIndex);
