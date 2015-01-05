@@ -22,19 +22,7 @@ function PieceList (name, description)
     this.description = description;
     this.pieces = [];
     this.numMatched = 0;
-}
-PieceList.prototype.initPieces = function (numGroups, groupSize)
-{
-    this.pieces = [];
-};
-PieceList.prototype.setBoard  = function ($boardDiv)
-{
-    // Clear any existing contents.
-    $boardDiv.empty();
-
-    for (var i = 0; i < this.pieces.length; i++) {
-        $boardDiv.append('<div class="piece" id="' + i + '"></div>');
-    }
+    this.matchedPieces = [];
 }
 
 var flagIdToName = {  
@@ -319,7 +307,7 @@ FlagPieceList.prototype.initPieces = function (numGroups, groupSize)
 
                 /*
                  * It is unlikely that we will get identical random
-                 * numbers, but we will check just in case.
+                 * numbers with this small sample size, but we will check just in case.
                  */
                 if (! orderToFlagId.hasOwnProperty(order)) {
                     orderToFlagId[order] = flagId;
@@ -347,20 +335,17 @@ FlagPieceList.prototype.initPieces = function (numGroups, groupSize)
         var flagId = orderToFlagId[order];
         this.pieces.push(new FlagPiece(flagId));
     }
+    this.matchedPieces = [];
 }
 
 console.log("Initialize flags.");
 populateFlagIds();
 
-var moves = 0;
-var prevPieceIndex = -1; 
-var numGroups = 4;
+var numGroups = 6;
 var groupSize = 2;
-console.log("Set up board");
-var boardPieces = new FlagPieceList();
-boardPieces.initPieces(numGroups, groupSize);
-console.log("Board has " + boardPieces.pieces.length + " pieces");
 
+
+// Set up simple webserver to serve our static pages and image files.
 var static = require('node-static');
 var http = require('http');
 var file = new (static.Server)();
@@ -368,64 +353,163 @@ var app = http.createServer(function (req, res){
     file.serve(req, res);
 }).listen(port);
 
+var numGames = 3;
+
+// Listen to the default namespace.
 var io = require('socket.io').listen(app);
 io.on('connection', function(socket){
-    console.log('A user connected.');
+    console.log('/: A user connected.');
     
-    socket.on('disconnect', function(socket){
-        console.log('A user disconnected.');
+    socket.on('connect', function(socket){
+        console.log('/: A user disconnected.'); 
     });
     
-    socket.on('selected', function(pieceIndex){
-        moves++;
-        console.log('selected ' + pieceIndex + '; ' + moves + ' moves so far.');
-
-        var piece = boardPieces.pieces[pieceIndex];
-
-        // Ignore clicks on already matched pieces.
-        if (piece.isMatched) {
-            return;
-        }
+    socket.on('list', function(socket){
+        console.log('/: A user asked for a list of games.');
         
-        // Select this piece.
-        io.emit('selected', {'pieceIndex': pieceIndex, 'piece': piece} );
+        io.emit('list', [1, 2, 3]);
+    });
+    
+        
+    socket.on('state', function(gameId){
+        console.log('/: Request for state of ' + gameId);
+        
+        var game = games[gameId];
+        var boardPieces = game.pieceList;
+        var nameSpace = game.nameSpace;
+        var prevPieceIndex = game.prevPieceIndex;
+        console.log('prevPieceIndex = ' + prevPieceIndex);
+        
+        var states = [];
+        for (var i = 0; i < boardPieces.pieces.length; i++) {
+            var piece = boardPieces.pieces[i];
 
-        // A second click on the same unmatched piece clears the selection.
-        if (prevPieceIndex === pieceIndex) {
-            // A second click clears the selection.
-            io.emit('unselected', pieceIndex);
-            prevPieceIndex = -1;
-            return;
-        }
-
-        // Compare this piece to the previous one to see how to proceed.
-        if (prevPieceIndex < 0) {
-            // Nothing already selected
-            prevPieceIndex = pieceIndex;
-        } else {
-            prevPiece = boardPieces.pieces[prevPieceIndex];
-
-            if (prevPiece.name === piece.name) {
-                // Match!
-                
-                // Record the match and report it to clients.
-                prevPiece.isMatched = true;
-                piece.isMatched = true;
-                io.emit('match', piece);
-                prevPieceIndex = -1;
-                
-                // See if this was the final set needed.
-                boardPieces.numMatched += 2;
-                if (boardPieces.numMatched >= boardPieces.pieces.length) {
-                    io.emit('won', moves);
-                }
+            if (piece.isMatched) {
+                states[i] = {'state':'matched',
+                             'imagePath':piece.imagePath};
+            } else if (game.prevPieceIndex == i) {
+                states[i] = {'state':'selected',
+                             'imagePath':piece.imagePath};
             } else {
-                // No match. Hide the previous piece and remember this one.
-                io.emit('unselected', prevPieceIndex);
-                prevPieceIndex = pieceIndex;
+                states[i] = {'state':'unselected'};
             }
         }
+        
+        var matches = [];
+        for (var i = 0; i < boardPieces.matchedPieces.length; i++) {
+            var piece = boardPieces.matchedPieces[i];
+            matches[i] = {'name':piece.name, 'imagePath':piece.imagePath};
+        } 
+        
+        nameSpace.emit('state', {'pieces':states,
+                                 'matches':matches,
+                                 'moves':game.moves,
+                                 'numGroups':numGroups});
     });
 });
+
+var games = [];
+
+var getNameSpace = function (gameId)
+{
+    var nameSpace = io.of('/' + gameId);
+    nameSpace.on('connection', function(socket){
+        console.log('A user connected.');
+
+
+        socket.on('disconnect', function(socket){
+            console.log('/' + socket.gameId + ': A user disconnected');
+        });
+        
+        socket.on('selected', function(pieceInfo){
+            var gameId = pieceInfo.gameId;
+            var pieceIndex = pieceInfo.pieceIndex;
+            var game = games[gameId];
+            var boardPieces = game.pieceList;
+            var nameSpace = game.nameSpace;
+            var piece = boardPieces.pieces[pieceIndex];
+            var prevPieceIndex = game.prevPieceIndex;
+
+            // Ignore clicks on already matched pieces.
+            if (piece.isMatched) {
+                console.log('/' + gameId + ': ' +
+                            'selected already matched ' + pieceIndex);
+                return;
+            }
+            
+            // Record this selection event and notify the clients.
+            game.moves++;
+            console.log('/' + gameId + ': ' +
+                        'selected ' + pieceIndex + '; ' + game.moves + ' moves so far.');
+            nameSpace.emit('selected', {'pieceIndex': pieceIndex, 'piece': piece} );
+
+            // A second click on the same unmatched piece clears the selection.
+            if (prevPieceIndex === pieceIndex) {
+                // A second click clears the selection.
+                nameSpace.emit('unselected', pieceIndex);
+                game.prevPieceIndex = -1;
+                return;
+            }
+
+            // Compare this piece to the previous one to see how to proceed.
+            if (prevPieceIndex < 0) {
+                // Nothing already selected
+                game.prevPieceIndex = pieceIndex;
+            } else {
+                prevPiece = boardPieces.pieces[prevPieceIndex];
+
+                if (prevPiece.name === piece.name) {
+                    // Match!
+
+                    // Record the match and report it to clients.
+                    boardPieces.numMatched += groupSize;
+                    prevPiece.isMatched = true;
+                    piece.isMatched = true;
+                    boardPieces.matchedPieces.push(piece);
+                    nameSpace.emit('match', 
+                                   {'pieceIndices':[prevPieceIndex, pieceIndex],
+                                    'piece':piece});
+                    game.prevPieceIndex = -1;
+
+                    // See if this was the final set needed.
+
+                    if (boardPieces.numMatched >= boardPieces.pieces.length) {
+                        nameSpace.emit('won', game.moves);
+                    }
+                } else {
+                    // No match. Hide the previous piece and remember this one.
+                    nameSpace.emit('unselected', prevPieceIndex);
+                    game.prevPieceIndex = pieceIndex;
+                }
+            }
+        });
+    });
+    
+    return nameSpace;
+}
+
+function Game (gameId)
+{
+    console.log('Create Game ' + gameId);
+    this.gameId = gameId;
+    this.nameSpace = getNameSpace(this.gameId);
+    this.players = 0;
+    this.pieceList = new FlagPieceList();
+    this.pieceList.initPieces(numGroups, groupSize);
+    this.prevPieceIndex = -1;
+    this.moves = 0;
+}
+Game.prototype.reset = function ()
+{
+    this.pieceList.initPieces(numGroups, groupSize);
+    this.prevPieceIndex = -1;
+    this.moves = 0;
+}
+
+console.log("Create games");
+for (var gameId = 1; gameId <= numGames; gameId++) {
+    var game = new Game(gameId);
+    games[gameId] = game;
+}
 
 console.log('listening on *:' + port);
