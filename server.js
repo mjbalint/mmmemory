@@ -416,7 +416,6 @@ var getGameState = function (gameId)
     var game = games[gameId];
     var boardPieces = game.pieceList;
     var prevPieceIndex = game.prevPieceIndex;
-    console.log('prevPieceIndex = ' + prevPieceIndex);
 
     var states = [];
     for (var i = 0; i < boardPieces.pieces.length; i++) {
