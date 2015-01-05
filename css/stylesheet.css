@@ -48,13 +48,26 @@ body {
 
 
 .piece {
-    height: 128px;
-    width: 128px;
     background-color: gray;
     background-repeat: no-repeat;
     background-size: cover;
     border-radius: 100%;
     display: inline-block;
+}
+
+.pieceSmall {
+    height: 64px;
+    width: 64px;
+}
+
+.pieceMedium {
+    height: 96px;
+    width: 96px;
+}
+
+.pieceLarge {
+    height: 128px;
+    width: 128px;
 }
 
 .unselected {
@@ -76,7 +89,7 @@ body {
 }
 
 .button {
-    background-color: blue;
+    background-color: rgba(25, 136, 136, 1);
     display: inline-block;
     height: 50px;
     width: 100px;
