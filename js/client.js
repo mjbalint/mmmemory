@@ -29,8 +29,9 @@
 // The socket.io module is loaded before this one by a <script> directive in index.html.
 var socket = io();
 
-// Our current game. Initially, we have joined no game. 
+// Initially, we have joined no game and know of no games.
 var gameId = null;
+var gameIds = [];
 
 // Set to true to add raw event logging to the bottom of each client's pages.
 var enableLog = false;
@@ -48,6 +49,47 @@ var logClientMessage = function(msg)
 var logServerMessage = function(msg)
 {
     logMessage('<em>remote</em>: ' + msg);
+}
+
+// Update game join/reset buttons
+var updateButtons = function ()
+{
+    $('#gameButtons').empty();
+    for (var i = 0; i < gameIds.length; i++) {
+        var game = gameIds[i];
+        
+        var buttonClass = 'join';
+        var buttonAction = 'Join';
+        if (game === gameId) {
+            // Create a 'Reset' button for the current game instead of a join one.
+
+            buttonClass = 'reset';
+            buttonAction = 'Reset';
+        }
+        logClientMessage('Add ' + buttonClass +' button for "' + game + '"');
+        
+        $('#gameButtons').append(
+            '<div class="button ' + buttonClass + '" game="' + game + '">' +
+              '<p>' + buttonAction + ' <strong>' + game + '</strong></p>' +
+            '</div>');
+    }
+     
+    // 'Join <game>' button handler
+    $('.join').click(function(){
+        gameId = $(this).attr('game');
+
+        logClientMessage('Join game ' + gameId);
+        updateButtons();
+        socket.emit('join', gameId);
+    });
+
+    // 'Reset <game>' button handler
+    $('.reset').click(function(){
+        var gameId = $(this).attr('game');
+        
+        logClientMessage('Reset game ' + gameId);
+        socket.emit('reset', gameId);
+    });
 }
 
 // Add an entry to the end of the match table.
@@ -69,6 +111,25 @@ var matchTableAdd = function (piece)
                             '</tr>');
 }
 
+// Fade in pieces on the board.
+var pieceIds = [];
+var fadeInPieces = function (numPieces)
+{
+    // Call fadeIn on each piece in sequence.
+    // We stagger the calls to get a sequential effect.
+    // The interval (in milliseconds) is chosen so that all
+    // pieces are ready within 1 second.
+    var interval = (1000 / numPieces);
+    for (var i = 0; i < numPieces; i++) {
+        pieceIds.push(numPieces - i - 1);
+        setTimeout(
+            function(){
+                var pieceId = pieceIds.pop();
+                $('#' + pieceId).fadeIn();
+            },
+            interval * (i+1));  
+    }
+}
 
 $(document).ready(function(){
     // Ask the server for a list of available games.
@@ -80,30 +141,8 @@ $(document).ready(function(){
         logServerMessage(gameList.length + ' games: ' + gameList);
         
         // Set up a 'Join' and 'Reset' button for each available game.
-        $('#gameButtons').empty();
-        for (var i = 0; i < gameList.length; i++) {
-            var game = gameList[i];
-            logClientMessage('Add button "' + game + '"');
-            $('#gameButtons').append(
-                '<div class="button join" game="' + game + '"><p>Join ' + game + '</p></div>' +
-                '<div class="button reset" game="' + game + '"><p>Reset ' + game + '</p></div>');
-        }
-        
-        // 'Join <game>' button handler
-        $('.join').click(function(){
-            gameId = $(this).attr('game');
-            
-            logClientMessage('Join game ' + gameId);
-            socket.emit('join', gameId);
-        });
-        
-        // 'Reset <game>' button handler
-        $('.reset').click(function(){
-            var gameId = $(this).attr('game');
-            
-            logClientMessage('Reset game ' + gameId);
-            socket.emit('reset', gameId);
-        });
+        gameIds = gameList;
+        updateButtons();
 
         // Receive complete game state.
         // This event may be triggered by either our own 'join'
@@ -133,7 +172,9 @@ $(document).ready(function(){
 
                 logClientMessage('Create piece ' + i);
                 $('#board').append('<div class="piece" id="' + i + '">');
-                if (piece.state !== 'unselected') {
+                if (piece.state === 'unselected') {
+                    $('#' + i).append('<p class="question">?</p>');
+                } else {
                     logClientMessage('Show piece ' + i);
                     $('#' + i).css('background-image',
                                    'url(' + piece.imagePath + ')');
@@ -144,7 +185,9 @@ $(document).ready(function(){
                     $('#' + i).addClass('unselected');
                 }
                 $('#' + i).addClass(pieceSizeClass);
+                $('#' + i).hide();
             }
+            fadeInPieces(pieces.length);
 
             // Clear the match information and repopulate from the state.
             $('#matchTable').empty();
@@ -169,6 +212,7 @@ $(document).ready(function(){
             var pieceIndex = pieceInfo.pieceIndex;
             var piece = pieceInfo.piece;
             logServerMessage('Selected ' + pieceIndex);
+            $('#' + pieceIndex).empty();
             $('#' + pieceIndex).css('background-image', 
                                     'url(' + piece.imagePath + ')');
             $('#' + pieceIndex).removeClass('unselected');
@@ -181,6 +225,7 @@ $(document).ready(function(){
         socket.on('unselected', function(pieceIndex){
             logServerMessage('Unselected ' + pieceIndex);
             $('#' + pieceIndex).css('background-image', 'none');
+            $('#' + pieceIndex).append('<p class="question">?</p>');
             $('#' + pieceIndex).removeClass('selected');
             $('#' + pieceIndex).addClass('unselected');
         });

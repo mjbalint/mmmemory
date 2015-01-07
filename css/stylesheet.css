@@ -53,21 +53,29 @@ body {
     background-size: cover;
     border-radius: 100%;
     display: inline-block;
+    text-align: center;
+    vertical-align: middle;
 }
 
 .pieceSmall {
     height: 64px;
     width: 64px;
+    line-height: 8px;
+    font-size: 32px;
 }
 
 .pieceMedium {
     height: 96px;
     width: 96px;
+    line-height: 12px;
+    font-size: 48px;
 }
 
 .pieceLarge {
     height: 128px;
     width: 128px;
+    line-height: 16px;
+    font-size: 64px;
 }
 
 .unselected {
@@ -89,12 +97,17 @@ body {
 }
 
 .button {
-    background-color: rgba(25, 136, 136, 1);
-    display: inline-block;
-    height: 50px;
-    width: 100px;
-    border-radius: 5%;
-    text-align: center;
-    border: 3px solid black;
-    padding-right: 10px;
+    border-radius: 5px;
+	border: 2px solid #6495ED;
+	background-color: #BCD2EE;
+	height: 50px;
+	width: 120px;
+    margin-right: 10px;
+	text-align: center;
+    float: left;
+}
+
+.question {
+    font-family: cursive;
+    color: black;
 }
