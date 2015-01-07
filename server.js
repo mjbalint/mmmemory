@@ -75,7 +75,7 @@ function PieceList (name, description)
     this.description = description;
     this.pieces = [];
     this.numMatched = 0;
-    this.matchedPieces = [];
+    this.matches = [];
 }
 
 // A mapping of country codes to the full name.
@@ -389,7 +389,7 @@ FlagPieceList.prototype.initPieces = function (numGroups, groupSize)
         var flagId = orderToFlagId[order];
         this.pieces.push(new FlagPiece(flagId));
     }
-    this.matchedPieces = [];
+    this.matches = [];
     this.numMatched = 0;
 }
 
@@ -433,9 +433,13 @@ var getGameState = function (gameId)
     }
 
     var matches = [];
-    for (var i = 0; i < boardPieces.matchedPieces.length; i++) {
-        var piece = boardPieces.matchedPieces[i];
-        matches[i] = {name: piece.name, imagePath: piece.imagePath};
+    for (var i = 0; i < boardPieces.matches.length; i++) {
+        var matchInfo = boardPieces.matches[i];
+        var piece = matchInfo.piece;
+        var player = matchInfo.player;
+        matches[i] = {name: piece.name,
+                      imagePath: piece.imagePath,
+                      player: player};
     }
     
     return ({pieces: states,
@@ -444,10 +448,16 @@ var getGameState = function (gameId)
              numGroups: game.numGroups});
 }
 
+var socketIdToName = {};
+var numPlayers = 0;
+
 // Listen to the default namespace.
 var io = require('socket.io').listen(app);
 io.on('connection', function(socket){
     console.log('/: ' + socket.id + ' connected.');
+    numPlayers++;
+    socketIdToName[socket.id] = 'Player' + numPlayers;
+    
     
     // When a client disconnects, will automatically leave all groups,
     // but we still need to tidy up our mapping table.
@@ -457,7 +467,15 @@ io.on('connection', function(socket){
         if (socketIdToGameId.hasOwnProperty(socket.id)) {
             console.log('/: ' + socket.id + ' leaves ' + socketIdToGameId[socket.id]);
             socket.leave(socketIdToGameId[socket.id]);
+            delete (socketIdToGameId[socket.id]);
         }
+    });
+    
+    // A client has identified themselves.
+    socket.on('name', function(name){
+        console.log('/: ' + socket.id + ' is called "' + name + '"');
+        
+        socketIdToName[socket.id] = name;
     });
     
     // A client has requested a list of all available games.
@@ -511,6 +529,7 @@ io.on('connection', function(socket){
         var boardPieces = game.pieceList;
         var piece = boardPieces.pieces[pieceIndex];
         var prevPieceIndex = game.prevPieceIndex;
+        var player = socketIdToName[socket.id];
 
         // Ignore clicks on already matched pieces.
         if (piece.isMatched) {
@@ -548,10 +567,11 @@ io.on('connection', function(socket){
                 boardPieces.numMatched += game.groupSize;
                 prevPiece.isMatched = true;
                 piece.isMatched = true;
-                boardPieces.matchedPieces.push(piece);
+                boardPieces.matches.push({piece: piece, player: player});
                 io.to(gameId).emit(
                     'match', {pieceIndices: [prevPieceIndex, pieceIndex],
-                              piece: piece});
+                              piece: piece,
+                              player: player});
                 game.prevPieceIndex = -1;
 
                 // See if this was the final set needed.

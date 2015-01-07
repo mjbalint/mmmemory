@@ -60,25 +60,26 @@ body {
 .pieceSmall {
     height: 64px;
     width: 64px;
-    line-height: 8px;
     font-size: 32px;
 }
 
 .pieceMedium {
     height: 96px;
     width: 96px;
-    line-height: 12px;
     font-size: 48px;
 }
 
 .pieceLarge {
     height: 128px;
     width: 128px;
-    line-height: 16px;
     font-size: 64px;
 }
 
 .unselected {
+    border: 5px solid white;
+}
+
+.matched {
     border: 5px solid white;
 }
 
@@ -110,4 +111,12 @@ body {
 .question {
     font-family: cursive;
     color: black;
+}
+
+.preselected {
+    border: 5px solid green;
+}
+
+input {
+    float: left;
 }

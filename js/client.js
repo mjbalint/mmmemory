@@ -93,13 +93,13 @@ var updateButtons = function ()
 }
 
 // Add an entry to the end of the match table.
-var matchTableAdd = function (piece)
+var matchTableAdd = function (piece, player)
 {
     var matchImg = '<img class="matchImg" src="' + piece.imagePath + '" />';
     var matchUrl = 'https://en.wikipedia.org/wiki/' + piece.name;
     var matchDescription =
         '<p>' +
-            'You found the flag of ' +
+            '<strong>' + player + '</strong> found the flag of ' +
                 '<a target="_blank" href="' + matchUrl + '">' +
                     piece.name +
                 '</a>.' +
@@ -132,8 +132,16 @@ var fadeInPieces = function (numPieces)
 }
 
 $(document).ready(function(){
-    // Ask the server for a list of available games.
-    socket.emit('list');
+    $('.connect').click(function(){
+        // Report player name and ask the server for a list of available games.
+        var player = $('#player').val();
+        player.replace(/[^a-zA-Z0-9 ]/g, ""); 
+        if ('' !== player) {
+            socket.emit('name', player);
+        }
+        socket.emit('list');
+    });
+
     
     // Respond to the server sending us a list of available games.
     // We only expect to get such a message in response to our own 'list' event.
@@ -173,17 +181,14 @@ $(document).ready(function(){
                 logClientMessage('Create piece ' + i);
                 $('#board').append('<div class="piece" id="' + i + '">');
                 if (piece.state === 'unselected') {
-                    $('#' + i).append('<p class="question">?</p>');
+                    logClientMessage('Hide piece ' + i);
+                    $('#' + i).append('<span class="question">?</span>');
                 } else {
                     logClientMessage('Show piece ' + i);
                     $('#' + i).css('background-image',
                                    'url(' + piece.imagePath + ')');
                 }
-                if (piece.state === 'selected') {
-                    $('#' + i).addClass('selected');
-                } else {
-                    $('#' + i).addClass('unselected');
-                }
+                $('#' + i).addClass(piece.state);
                 $('#' + i).addClass(pieceSizeClass);
                 $('#' + i).hide();
             }
@@ -192,7 +197,7 @@ $(document).ready(function(){
             // Clear the match information and repopulate from the state.
             $('#matchTable').empty();
             for (var i = 0; i < matches.length; i++) {
-                matchTableAdd(matches[i]);
+                matchTableAdd(matches[i], matches[i].player);
             }
             if (matches.length >= numGroups) {
                 $('#matchTable').append(
@@ -205,6 +210,17 @@ $(document).ready(function(){
                 socket.emit('selected', {gameId: gameId, pieceIndex: pieceIndex});
                 logClientMessage('Selected ' + pieceIndex);
             });
+            
+            $('.piece').hover(
+                function(){
+                    if ($(this).hasClass('unselected')) {
+                        $(this).addClass('preselected');
+                    }
+                },
+                function(){
+                    $(this).removeClass('preselected');
+                }
+            );
         });
 
         // A player selected a piece.
@@ -216,6 +232,7 @@ $(document).ready(function(){
             $('#' + pieceIndex).css('background-image', 
                                     'url(' + piece.imagePath + ')');
             $('#' + pieceIndex).removeClass('unselected');
+            $('#' + pieceIndex).removeClass('preselected');
             $('#' + pieceIndex).addClass('selected');
         });
 
@@ -225,7 +242,8 @@ $(document).ready(function(){
         socket.on('unselected', function(pieceIndex){
             logServerMessage('Unselected ' + pieceIndex);
             $('#' + pieceIndex).css('background-image', 'none');
-            $('#' + pieceIndex).append('<p class="question">?</p>');
+            $('#' + pieceIndex).append('<span class="question">?</span>');
+            $('#' + pieceIndex).removeClass('preselected');
             $('#' + pieceIndex).removeClass('selected');
             $('#' + pieceIndex).addClass('unselected');
         });
@@ -234,6 +252,7 @@ $(document).ready(function(){
         socket.on('match', function(matchInfo){
             pieceIndices = matchInfo.pieceIndices;
             piece = matchInfo.piece;
+            player = matchInfo.player;
 
             logServerMessage(
                 'Matched ' + pieceIndices.length + ' pieces with name ' + piece.name);
@@ -243,11 +262,13 @@ $(document).ready(function(){
             for (var i = 0; i < pieceIndices.length; i++) {
                 pieceIndex = pieceIndices[i];
                 $('#' + pieceIndex).removeClass('selected');
-                $('#' + pieceIndex).addClass('unselected');
+                $('#' + pieceIndex).removeClass('unselected');
+                $('#' + pieceIndex).removeClass('preselected');
+                $('#' + pieceIndex).addClass('matched');
             }
             
             // Record the details of the match.
-            matchTableAdd(piece);
+            matchTableAdd(piece, player);
         });
 
         // Game completed!
