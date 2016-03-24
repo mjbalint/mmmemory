@@ -19,8 +19,9 @@ http://nodejs.org
 
 Next, you will need to install the necessary node.js extensions. From a console, go to the mmmemory clone root folder and enter:
 
-npm node-static
-npm socket.io 
+npm install node-static
+
+npm install socket.io 
 
 Now you can start the server. Again, from the mmmemory folder, enter:
 
@@ -28,4 +29,4 @@ node server.js 1350
 
 This will start a webserver that will listen on port 1350. You can choose a different port number if you like.
 
-To join the game, go to 'http://localhost:1350' from your browser. If you started the server with another port number then replace '1350' with that port number in the URL. The game has been tested with Chrome and Firefox
+To join the game, go to 'http://localhost:1350' from your browser. If you started the server with another port number then replace '1350' with that port number in the URL. The game has been tested with Chrome and Firefox.
